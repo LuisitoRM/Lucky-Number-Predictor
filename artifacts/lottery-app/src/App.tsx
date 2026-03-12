@@ -27,21 +27,21 @@ function Router() {
         <Route path="/:tipo/prediccion">
           {(params) => {
             const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
-            return valid ? <PredictionPage tipo={params.tipo} /> : <Redirect to="/" />;
+            return valid ? <PredictionPage key={params.tipo} tipo={params.tipo} /> : <Redirect to="/" />;
           }}
         </Route>
         
         <Route path="/:tipo/historial">
           {(params) => {
             const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
-            return valid ? <HistoryPage tipo={params.tipo} /> : <Redirect to="/" />;
+            return valid ? <HistoryPage key={params.tipo} tipo={params.tipo} /> : <Redirect to="/" />;
           }}
         </Route>
 
         <Route path="/:tipo/frecuencias">
           {(params) => {
             const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
-            return valid ? <FrequenciesPage tipo={params.tipo} /> : <Redirect to="/" />;
+            return valid ? <FrequenciesPage key={params.tipo} tipo={params.tipo} /> : <Redirect to="/" />;
           }}
         </Route>
 
