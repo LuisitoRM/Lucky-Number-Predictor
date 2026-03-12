@@ -20,8 +20,8 @@ export function LotteryBall({ number, type, lottery, delay = 0, animate = true }
       bgClass = "bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950";
       borderClass = "border-amber-400";
     } else if (lottery === "revancha") {
-      bgClass = "bg-gradient-to-br from-gray-100 to-gray-300 text-gray-900";
-      borderClass = "border-gray-300";
+      bgClass = "bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950";
+      borderClass = "border-amber-400";
     } else if (lottery === "powerball") {
       bgClass = "bg-gradient-to-br from-white to-gray-200 text-black";
       borderClass = "border-gray-200";

@@ -128,7 +128,7 @@ router.get("/history/:tipo", async (req: Request, res: Response): Promise<void> 
   const rows = await db
     .select()
     .from(table)
-    .orderBy(desc(table.fecha))
+    .orderBy(sql`to_date(${table.fecha}, 'DD/MM/YYYY') DESC`)
     .limit(limit)
     .offset(offset);
 
@@ -250,7 +250,7 @@ router.post("/predict/:tipo", async (req: Request, res: Response): Promise<void>
   const rows = await db
     .select()
     .from(table)
-    .orderBy(desc(table.fecha))
+    .orderBy(sql`to_date(${table.fecha}, 'DD/MM/YYYY') DESC`)
     .limit(500);
 
   if (rows.length < 5) {

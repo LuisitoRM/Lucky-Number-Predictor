@@ -3,6 +3,7 @@ import { usePredict, type LoteryType } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LotteryBall } from "@/components/LotteryBall";
+import { ComparisonSection } from "@/components/ComparisonSection";
 import { Dices, AlertTriangle, Cpu, CheckCircle2 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -168,6 +169,13 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
                   {data.metodologia}
                 </span>
               </div>
+
+              {/* Historical Comparison */}
+              <ComparisonSection
+                tipo={validTipo}
+                predictedNumbers={data.numeros}
+                predictedSpecial={data.especial}
+              />
             </motion.div>
           )}
         </AnimatePresence>
