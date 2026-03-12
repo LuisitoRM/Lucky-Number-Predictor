@@ -22,12 +22,22 @@ function normalizeDate(val: string): string {
   return val.trim();
 }
 
+function detectDelimiter(buffer: Buffer): string {
+  const firstLine = buffer.toString("utf8").replace(/^\uFEFF/, "").split(/\r?\n/)[0] ?? "";
+  if (firstLine.includes(";")) return ";";
+  if (firstLine.includes("\t")) return "\t";
+  return ",";
+}
+
 export function parseCsv(buffer: Buffer, tipo: LotteryType): ParsedRow[] {
+  const delimiter = detectDelimiter(buffer);
   const records: Record<string, string>[] = parse(buffer, {
     columns: true,
     skip_empty_lines: true,
     trim: true,
     relax_column_count: true,
+    delimiter,
+    bom: true,
   });
 
   return records.map((row, idx) => {
