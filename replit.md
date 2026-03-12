@@ -71,6 +71,13 @@ Located in `artifacts/api-server/src/lib/prediction.ts`:
 3. Filter combinations by valid sum range
 4. Return the most statistically stable combination
 
+## Deployment (Render)
+
+- **render.yaml**: Blueprint for Render — single Web Service + PostgreSQL DB
+- **.node-version**: Pins Node.js 22 LTS for Render compatibility
+- **DEPLOY.md**: Full step-by-step deployment guide (GitHub → Render)
+- In production, Express serves both the API (`/api/*`) and the React frontend (static files)
+
 ## Key Scripts
 
 - `pnpm --filter @workspace/api-server run dev` — Run dev API server
