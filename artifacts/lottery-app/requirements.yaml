@@ -1,0 +1,16 @@
+packages:
+  "framer-motion": "For sophisticated staggered animations of lottery balls and page transitions"
+  "recharts": "For rendering frequency analysis charts and distribution graphs"
+  "clsx": "For conditional tailwind class merging"
+  "tailwind-merge": "For conditional tailwind class merging"
+  "lucide-react": "For crisp, modern icons throughout the dashboard"
+  "date-fns": "For formatting historical draw dates"
+
+images:
+  - path: "artifacts/lottery-app/public/images/tech-bg.png"
+    description: "Abstract dark mode data visualization background with subtle glowing grid lines and deep blue/cyan neon accents, sophisticated and minimal"
+    aspect_ratio: "16:9"
+
+notes:
+  - "The app assumes endpoints are available at /api/* as defined in the OpenAPI spec"
+  - "Requires @workspace/api-client-react for TanStack Query hooks"

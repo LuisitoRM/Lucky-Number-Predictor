@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Neural Expert — Loterías"
+version = "1.0.0"
+id = "artifacts/lottery-app"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 25222
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/lottery-app run dev"
+
+[services.env]
+PORT = "25222"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/lottery-app", "run", "build"]
+publicDir = "artifacts/lottery-app/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

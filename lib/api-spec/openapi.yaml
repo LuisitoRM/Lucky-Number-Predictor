@@ -1,15 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: Neural Expert - Plataforma de análisis predictivo para loterías Baloto, Revancha y Powerball
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: status
+    description: Status and data management
+  - name: history
+    description: Historical lottery results
+  - name: frequencies
+    description: Frequency analysis
+  - name: predict
+    description: Prediction engine
 paths:
   /healthz:
     get:
@@ -24,6 +31,147 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /status:
+    get:
+      operationId: getStatus
+      tags: [status]
+      summary: Get data status
+      description: Returns record counts and date ranges per lottery
+      responses:
+        "200":
+          description: Status per lottery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+
+  /upload/{tipo}:
+    post:
+      operationId: uploadCsv
+      tags: [status]
+      summary: Upload CSV historical data
+      description: Bulk ingest of historical lottery results from CSV file
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LoteryType"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        "200":
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /history/{tipo}:
+    get:
+      operationId: getHistory
+      tags: [history]
+      summary: Get paginated history
+      description: Returns paginated historical lottery results
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LoteryType"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Historical results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /frequencies/{tipo}:
+    get:
+      operationId: getFrequencies
+      tags: [frequencies]
+      summary: Get frequency analysis
+      description: Returns frequency statistics for main numbers and special ball
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LoteryType"
+      responses:
+        "200":
+          description: Frequency analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FrequencyResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /predict/{tipo}:
+    post:
+      operationId: predict
+      tags: [predict]
+      summary: Generate prediction
+      description: Generates a suggested combination using weighted frequency + Monte Carlo simulation
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LoteryType"
+      responses:
+        "200":
+          description: Prediction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionResponse"
+        "400":
+          description: Insufficient data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +182,212 @@ components:
       required:
         - status
 
+    LoteryType:
+      type: string
+      enum:
+        - baloto
+        - revancha
+        - powerball
+
+    LotteryInfo:
+      type: object
+      properties:
+        tipo:
+          $ref: "#/components/schemas/LoteryType"
+        count:
+          type: integer
+        oldest:
+          type: ["string", "null"]
+        newest:
+          type: ["string", "null"]
+      required:
+        - tipo
+        - count
+        - oldest
+        - newest
+
+    StatusResponse:
+      type: object
+      properties:
+        lotteries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LotteryInfo"
+      required:
+        - lotteries
+
+    UploadResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        inserted:
+          type: integer
+        skipped:
+          type: integer
+      required:
+        - message
+        - inserted
+        - skipped
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    HistoryRow:
+      type: object
+      properties:
+        id:
+          type: integer
+        fecha:
+          type: string
+        n1:
+          type: integer
+        n2:
+          type: integer
+        n3:
+          type: integer
+        n4:
+          type: integer
+        n5:
+          type: integer
+        especial:
+          type: integer
+      required:
+        - id
+        - fecha
+        - n1
+        - n2
+        - n3
+        - n4
+        - n5
+        - especial
+
+    HistoryResponse:
+      type: object
+      properties:
+        tipo:
+          $ref: "#/components/schemas/LoteryType"
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryRow"
+      required:
+        - tipo
+        - page
+        - limit
+        - total
+        - rows
+
+    NumberFrequency:
+      type: object
+      properties:
+        number:
+          type: integer
+        count:
+          type: integer
+        percentage:
+          type: number
+      required:
+        - number
+        - count
+        - percentage
+
+    FrequencyResponse:
+      type: object
+      properties:
+        tipo:
+          $ref: "#/components/schemas/LoteryType"
+        totalDraws:
+          type: integer
+        mainNumbers:
+          type: array
+          items:
+            $ref: "#/components/schemas/NumberFrequency"
+        specialBall:
+          type: array
+          items:
+            $ref: "#/components/schemas/NumberFrequency"
+        evenOddRatio:
+          type: object
+          properties:
+            even:
+              type: number
+            odd:
+              type: number
+          required:
+            - even
+            - odd
+        sumStats:
+          type: object
+          properties:
+            min:
+              type: integer
+            max:
+              type: integer
+            avg:
+              type: number
+            validRangeMin:
+              type: integer
+            validRangeMax:
+              type: integer
+            validRangePercent:
+              type: number
+          required:
+            - min
+            - max
+            - avg
+            - validRangeMin
+            - validRangeMax
+            - validRangePercent
+      required:
+        - tipo
+        - totalDraws
+        - mainNumbers
+        - specialBall
+        - evenOddRatio
+        - sumStats
+
+    PredictionResponse:
+      type: object
+      properties:
+        tipo:
+          $ref: "#/components/schemas/LoteryType"
+        numeros:
+          type: array
+          items:
+            type: integer
+        especial:
+          type: integer
+        suma:
+          type: integer
+        sumaEnRangoValido:
+          type: boolean
+        validSimulations:
+          type: integer
+        totalSimulations:
+          type: integer
+        basedOnDraws:
+          type: integer
+        metodologia:
+          type: string
+      required:
+        - tipo
+        - numeros
+        - especial
+        - suma
+        - sumaEnRangoValido
+        - validSimulations
+        - totalSimulations
+        - basedOnDraws
+        - metodologia

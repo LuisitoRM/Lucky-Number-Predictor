@@ -1,8 +1,8 @@
-# Workspace
+# Neural Expert — Plataforma de Análisis Predictivo de Loterías
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Web application for statistical analysis and prediction of lottery numbers for Baloto (Colombia), Revancha (Colombia), and Powerball (USA). Built on a pnpm monorepo with Express backend + React/Vite frontend.
 
 ## Stack
 
@@ -14,83 +14,66 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS + Recharts + Framer Motion
+- **Build**: esbuild (CJS bundle for server)
 
 ## Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server (port 8080, path /api)
+│   └── lottery-app/        # React + Vite frontend (path /)
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
+│   ├── api-zod/            # Generated Zod schemas
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/                # Utility scripts
+└── app.py                  # Legacy Python/Flask reference (not deployed here)
 ```
 
-## TypeScript & Composite Projects
+## Lottery Configuration
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+| Lottery | Main Numbers | Range | Special Ball | Range | Valid Sum Range |
+|---------|-------------|-------|-------------|-------|----------------|
+| Baloto | 5 | 1-43 | Super Balota | 1-16 | 82-137 |
+| Revancha | 5 | 1-43 | RSB | 1-16 | 82-137 |
+| Powerball | 5 | 1-69 | Powerball | 1-26 | 130-221 |
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## Database Tables
 
-## Root Scripts
+- `historial_baloto` — Baloto historical draws
+- `historial_revancha` — Revancha historical draws
+- `historial_powerball` — Powerball historical draws
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+All tables: `id (serial PK), fecha (text, unique), n1-n5 (integer), especial (integer)`
 
-## Packages
+## CSV Upload Formats
 
-### `artifacts/api-server` (`@workspace/api-server`)
+- **Baloto**: Fecha, B1, B2, B3, B4, B5, SB
+- **Revancha**: Fecha, R1, R2, R3, R4, R5, RSB
+- **Powerball**: Fecha, Bola Blanca 1..5, Powerball
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+## API Endpoints
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+- `GET /api/status` — Record counts and date ranges per lottery
+- `POST /api/upload/:tipo` — CSV bulk upload (multipart/form-data, field: `file`)
+- `GET /api/history/:tipo?page&limit` — Paginated historical results
+- `GET /api/frequencies/:tipo` — Frequency analysis (hot/cold numbers, even/odd, sums)
+- `POST /api/predict/:tipo` — Monte Carlo prediction (10,000 iterations)
 
-### `lib/db` (`@workspace/db`)
+## Prediction Engine
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+Located in `artifacts/api-server/src/lib/prediction.ts`:
+1. Build frequency weights from last 500 draws
+2. Weighted random selection (Monte Carlo, 10,000 iterations)
+3. Filter combinations by valid sum range
+4. Return the most statistically stable combination
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
+## Key Scripts
 
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- `pnpm --filter @workspace/api-server run dev` — Run dev API server
+- `pnpm --filter @workspace/lottery-app run dev` — Run frontend
+- `pnpm --filter @workspace/api-spec run codegen` — Regenerate types from OpenAPI spec
+- `pnpm --filter @workspace/db run push` — Push DB schema changes
