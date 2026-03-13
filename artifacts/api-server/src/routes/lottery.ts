@@ -6,7 +6,7 @@ import {
   historialRevanchaTable,
   historialPowerballTable,
 } from "@workspace/db";
-import { sql, count, min, max, desc } from "drizzle-orm";
+import { sql, count } from "drizzle-orm";
 import {
   GetStatusResponse,
   UploadCsvParams,
@@ -37,7 +37,11 @@ router.get("/status", async (_req: Request, res: Response): Promise<void> => {
     tipos.map(async (tipo) => {
       const table = getTable(tipo);
       const [row] = await db
-        .select({ count: count(), oldest: min(table.fecha), newest: max(table.fecha) })
+        .select({
+          count: count(),
+          oldest: sql<string | null>`(array_agg(${table.fecha} ORDER BY to_date(${table.fecha}, 'DD/MM/YYYY') ASC))[1]`,
+          newest: sql<string | null>`(array_agg(${table.fecha} ORDER BY to_date(${table.fecha}, 'DD/MM/YYYY') DESC))[1]`,
+        })
         .from(table);
       return {
         tipo,
