@@ -140,4 +140,7 @@ export const PredictResponse = zod.object({
   totalSimulations: zod.number(),
   basedOnDraws: zod.number(),
   metodologia: zod.string(),
+  hotNumbers: zod.array(zod.number()),
+  coldNumbers: zod.array(zod.number()),
+  gapEspecial: zod.number(),
 });

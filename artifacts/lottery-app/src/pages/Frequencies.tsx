@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useGetFrequencies, type LoteryType } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { LineChart, BarChart2, Hash, PieChart } from "lucide-react";
+import { LineChart, BarChart2, Hash, PieChart, Flame, Snowflake } from "lucide-react";
 
 export default function FrequenciesPage({ tipo }: { tipo: string }) {
   const validTipo = tipo as LoteryType;
@@ -22,6 +22,8 @@ export default function FrequenciesPage({ tipo }: { tipo: string }) {
 
   // Sort top 15 hot numbers
   const hotNumbers = [...data.mainNumbers].sort((a, b) => b.count - a.count).slice(0, 15);
+  // Sort bottom 15 cold numbers
+  const coldNumbers = [...data.mainNumbers].sort((a, b) => a.count - b.count).slice(0, 15);
   // Sort top 10 special balls
   const specialBalls = [...data.specialBall].sort((a, b) => b.count - a.count).slice(0, 10);
 
@@ -91,7 +93,10 @@ export default function FrequenciesPage({ tipo }: { tipo: string }) {
         
         <Card className="col-span-1 border-white/5">
           <CardHeader>
-            <CardTitle className="text-lg">Top 15 Números Principales (Calientes)</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Flame className="w-5 h-5 text-orange-400" />
+              Top 15 Números Calientes
+            </CardTitle>
           </CardHeader>
           <CardContent className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -137,7 +142,64 @@ export default function FrequenciesPage({ tipo }: { tipo: string }) {
           </CardContent>
         </Card>
 
+        <Card className="col-span-1 lg:col-span-2 border-white/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Snowflake className="w-5 h-5 text-blue-400" />
+              15 Números Fríos (Menos frecuentes — candidatos "vencidos")
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={coldNumbers} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis dataKey="number" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
+                  itemStyle={{ color: '#60a5fa' }}
+                  formatter={(value: number) => [`${value} apariciones`, 'Frecuencia']}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {coldNumbers.map((_, index) => (
+                    <Cell key={`cold-${index}`} fill={`hsl(213, 86%, ${Math.max(35, 55 - index * 1.5)}%)`} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
       </div>
+
+      {/* Legend */}
+      <Card className="bg-white/[0.02] border-white/5">
+        <CardContent className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="flex items-start gap-3">
+              <Flame className="w-5 h-5 text-orange-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-orange-300">Números Calientes</p>
+                <p className="text-muted-foreground text-xs mt-1">Aparecen con más frecuencia que el promedio histórico. El motor v2.0 les asigna mayor peso en la predicción.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Snowflake className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-blue-300">Números Fríos / Vencidos</p>
+                <p className="text-muted-foreground text-xs mt-1">Han aparecido menos de lo esperado. Pueden ser candidatos a salir según la teoría de números atrasados.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <BarChart2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-white">Decaimiento Temporal</p>
+                <p className="text-muted-foreground text-xs mt-1">El modelo v2.0 pondera sorteos recientes 4.5× más que los más antiguos (decay=0.997 por sorteo).</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

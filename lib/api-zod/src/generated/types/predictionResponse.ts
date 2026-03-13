@@ -17,4 +17,7 @@ export interface PredictionResponse {
   totalSimulations: number;
   basedOnDraws: number;
   metodologia: string;
+  hotNumbers: number[];
+  coldNumbers: number[];
+  gapEspecial: number;
 }

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LotteryBall } from "@/components/LotteryBall";
 import { ComparisonSection } from "@/components/ComparisonSection";
-import { Dices, AlertTriangle, Cpu, CheckCircle2 } from "lucide-react";
+import { Dices, AlertTriangle, Cpu, CheckCircle2, Flame, Snowflake, Clock } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -37,7 +37,7 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
           Motor <span className="text-gradient">{tipo}</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Generación estocástica basada en frecuencias ponderadas y filtrado Monte Carlo (10,000 iteraciones).
+          Generación estocástica basada en frecuencias con decaimiento temporal y filtrado Monte Carlo (50,000 iteraciones).
         </p>
       </div>
 
@@ -162,6 +162,59 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Hot / Cold / Gap Panel */}
+              {(data.hotNumbers?.length > 0 || data.coldNumbers?.length > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                  <Card className="bg-orange-500/5 border-orange-500/20">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-orange-400 text-xs font-semibold uppercase tracking-wider">
+                        <Flame className="w-4 h-4" />
+                        Números Calientes
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Mayor frecuencia reciente</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {data.hotNumbers.map((n) => (
+                          <span key={n} className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-bold">
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-blue-500/5 border-blue-500/20">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-blue-400 text-xs font-semibold uppercase tracking-wider">
+                        <Snowflake className="w-4 h-4" />
+                        Números Fríos
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Menor frecuencia reciente</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {data.coldNumbers.map((n) => (
+                          <span key={n} className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 text-xs font-bold">
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-purple-500/5 border-purple-500/20">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-purple-400 text-xs font-semibold uppercase tracking-wider">
+                        <Clock className="w-4 h-4" />
+                        Ausencia Especial
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Sorteos sin aparecer</p>
+                      <p className="text-2xl font-mono font-bold text-purple-300">
+                        {data.gapEspecial}
+                        <span className="text-xs text-muted-foreground ml-1 font-normal">sorteos</span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
               {/* Methodology Tag */}
               <div className="text-center">
