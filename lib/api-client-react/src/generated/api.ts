@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  DeletePredictionResponse,
   ErrorResponse,
   FrequencyResponse,
   GetHistoryParams,
@@ -24,6 +25,9 @@ import type {
   HistoryResponse,
   LoteryType,
   PredictionResponse,
+  SavedPrediction,
+  SavedPredictionsResponse,
+  SavePredictionBody,
   StatusResponse,
   UploadCsvBody,
   UploadResponse,
@@ -553,4 +557,140 @@ export const usePredict = <
   TContext
 > => {
   return useMutation(getPredictMutationOptions(options));
+};
+
+/* ─────────────────────────────────────────────────
+   SAVED PREDICTIONS
+   ───────────────────────────────────────────────── */
+
+// GET saved predictions for a lottery
+export const getSavedPredictionsUrl = (tipo: LoteryType) =>
+  `/api/saved/${tipo}`;
+
+export const getSavedPredictions = (
+  tipo: LoteryType,
+  options?: RequestInit,
+): Promise<SavedPredictionsResponse> =>
+  customFetch<SavedPredictionsResponse>(getSavedPredictionsUrl(tipo), {
+    ...options,
+    method: "GET",
+  });
+
+export const useGetSavedPredictions = <
+  TData = Awaited<ReturnType<typeof getSavedPredictions>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  tipo: LoteryType,
+  options?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSavedPredictions>>,
+    TError,
+    TData
+  >,
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } => {
+  const queryKey = [getSavedPredictionsUrl(tipo)];
+  const query = useQuery({
+    queryKey,
+    queryFn: () => getSavedPredictions(tipo),
+    ...options,
+  });
+  return { ...query, queryKey };
+};
+
+// POST save prediction
+export const savePrediction = (
+  tipo: LoteryType,
+  body: SavePredictionBody,
+  options?: RequestInit,
+): Promise<SavedPrediction> =>
+  customFetch<SavedPrediction>(`/api/saved/${tipo}`, {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const useSavePrediction = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof savePrediction>>,
+    TError,
+    { tipo: LoteryType; body: SavePredictionBody },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof savePrediction>>,
+  TError,
+  { tipo: LoteryType; body: SavePredictionBody },
+  TContext
+> => {
+  return useMutation({
+    mutationFn: ({ tipo, body }) => savePrediction(tipo, body),
+    ...options?.mutation,
+  });
+};
+
+// DELETE saved prediction
+export const deleteSavedPrediction = (
+  id: number,
+  options?: RequestInit,
+): Promise<DeletePredictionResponse> =>
+  customFetch<DeletePredictionResponse>(`/api/saved/item/${id}`, {
+    ...options,
+    method: "DELETE",
+  });
+
+export const useDeleteSavedPrediction = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSavedPrediction>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSavedPrediction>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation({
+    mutationFn: ({ id }) => deleteSavedPrediction(id),
+    ...options?.mutation,
+  });
+};
+
+// POST compare prediction with latest draw
+export const comparePrediction = (
+  id: number,
+  options?: RequestInit,
+): Promise<SavedPrediction> =>
+  customFetch<SavedPrediction>(`/api/saved/compare/${id}`, {
+    ...options,
+    method: "POST",
+  });
+
+export const useComparePrediction = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof comparePrediction>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof comparePrediction>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation({
+    mutationFn: ({ id }) => comparePrediction(id),
+    ...options?.mutation,
+  });
 };

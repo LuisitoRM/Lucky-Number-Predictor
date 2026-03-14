@@ -46,8 +46,11 @@ artifacts-monorepo/
 - `historial_baloto` — Baloto historical draws
 - `historial_revancha` — Revancha historical draws
 - `historial_powerball` — Powerball historical draws
+- `predicciones_guardadas` — Saved predictions with comparison results (max 3 per lottery)
 
-All tables: `id (serial PK), fecha (text, unique), n1-n5 (integer), especial (integer)`
+All history tables: `id (serial PK), fecha (text, unique), n1-n5 (integer), especial (integer)`
+
+`predicciones_guardadas`: `id, tipo, fechaGeneracion, n1-n5, especial, suma, metodologia, fechaSorteo (nullable), aciertos (nullable), aciertosEspecial (nullable), premio (nullable)`
 
 ## CSV Upload Formats
 

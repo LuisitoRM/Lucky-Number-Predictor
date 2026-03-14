@@ -6,6 +6,7 @@ import PredictionPage from "@/pages/Prediction";
 import HistoryPage from "@/pages/History";
 import FrequenciesPage from "@/pages/Frequencies";
 import AdminPage from "@/pages/Admin";
+import SavedPredictionsPage from "@/pages/SavedPredictions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,17 @@ function Router() {
           {(params) => {
             const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
             return valid ? <FrequenciesPage key={params.tipo} tipo={params.tipo} /> : <Redirect to="/" />;
+          }}
+        </Route>
+
+        <Route path="/guardadas">
+          <SavedPredictionsPage />
+        </Route>
+
+        <Route path="/:tipo/guardadas">
+          {(params) => {
+            const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
+            return valid ? <SavedPredictionsPage /> : <Redirect to="/" />;
           }}
         </Route>
 

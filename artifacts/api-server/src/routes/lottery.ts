@@ -5,8 +5,9 @@ import {
   historialBalotoTable,
   historialRevanchaTable,
   historialPowerballTable,
+  prediccionesGuardadasTable,
 } from "@workspace/db";
-import { sql, count } from "drizzle-orm";
+import { sql, count, eq, asc } from "drizzle-orm";
 import {
   GetStatusResponse,
   UploadCsvParams,
@@ -18,6 +19,15 @@ import {
   GetFrequenciesResponse,
   PredictParams,
   PredictResponse,
+  SavePredictionParams,
+  SavePredictionBody,
+  SavePredictionResponse,
+  GetSavedPredictionsParams,
+  GetSavedPredictionsResponse,
+  DeleteSavedPredictionParams,
+  DeleteSavedPredictionResponse,
+  ComparePredictionParams,
+  ComparePredictionResponse,
 } from "@workspace/api-zod";
 import { parseCsv, type LotteryType } from "../lib/csv-parser.js";
 import { runPrediction, LOTTERY_CONFIG } from "../lib/prediction.js";
@@ -265,6 +275,141 @@ router.post("/predict/:tipo", async (req: Request, res: Response): Promise<void>
   const result = runPrediction({ rows, tipo });
 
   res.json(PredictResponse.parse({ tipo, ...result }));
+});
+
+/* ──────────────────────────────────────────────
+   SAVED PREDICTIONS
+   ────────────────────────────────────────────── */
+
+function calcPrize(tipo: LotteryType, aciertos: number, aciertosEspecial: boolean): string {
+  if (tipo === "powerball") {
+    if (aciertos === 5 && aciertosEspecial) return "🏆 Jackpot";
+    if (aciertos === 5) return "💰 $1,000,000";
+    if (aciertos === 4 && aciertosEspecial) return "💰 $50,000";
+    if (aciertos === 4) return "💵 $100";
+    if (aciertos === 3 && aciertosEspecial) return "💵 $100";
+    if (aciertos === 3) return "💵 $7";
+    if (aciertos === 2 && aciertosEspecial) return "💵 $7";
+    if (aciertos === 1 && aciertosEspecial) return "💵 $4";
+    if (aciertos === 0 && aciertosEspecial) return "💵 $4";
+    return "Sin premio";
+  }
+  // Baloto / Revancha
+  if (aciertos === 5 && aciertosEspecial) return "🏆 Jackpot mayor";
+  if (aciertos === 5) return "💰 Premio 2°";
+  if (aciertos === 4 && aciertosEspecial) return "💰 Premio 3°";
+  if (aciertos === 4) return "💵 Premio 4°";
+  if (aciertos === 3 && aciertosEspecial) return "💵 Premio 5°";
+  if (aciertos === 3) return "💵 Premio 6°";
+  if (aciertos === 2 && aciertosEspecial) return "💵 Premio 7°";
+  return "Sin premio";
+}
+
+// POST /api/lottery/saved/:tipo  — guardar predicción (máx 3 por lotería)
+router.post("/saved/:tipo", async (req: Request, res: Response): Promise<void> => {
+  const params = SavePredictionParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Tipo inválido" }); return; }
+
+  const body = SavePredictionBody.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "Datos inválidos", detail: body.error.issues }); return; }
+
+  const tipo = params.data.tipo;
+
+  // Enforce max 3: if already 3, delete the oldest
+  const existing = await db
+    .select({ id: prediccionesGuardadasTable.id })
+    .from(prediccionesGuardadasTable)
+    .where(eq(prediccionesGuardadasTable.tipo, tipo))
+    .orderBy(asc(prediccionesGuardadasTable.id));
+
+  if (existing.length >= 3) {
+    await db.delete(prediccionesGuardadasTable).where(eq(prediccionesGuardadasTable.id, existing[0]!.id));
+  }
+
+  const [inserted] = await db
+    .insert(prediccionesGuardadasTable)
+    .values({
+      tipo,
+      fechaGeneracion: new Date().toISOString(),
+      ...body.data,
+    })
+    .returning();
+
+  res.json(SavePredictionResponse.parse({
+    ...inserted,
+    fechaSorteo: inserted?.fechaSorteo ?? null,
+    aciertos: inserted?.aciertos ?? null,
+    aciertosEspecial: inserted?.aciertosEspecial ?? null,
+    premio: inserted?.premio ?? null,
+  }));
+});
+
+// GET /api/lottery/saved/:tipo — listar predicciones guardadas
+router.get("/saved/:tipo", async (req: Request, res: Response): Promise<void> => {
+  const params = GetSavedPredictionsParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Tipo inválido" }); return; }
+
+  const tipo = params.data.tipo;
+  const rows = await db
+    .select()
+    .from(prediccionesGuardadasTable)
+    .where(eq(prediccionesGuardadasTable.tipo, tipo))
+    .orderBy(asc(prediccionesGuardadasTable.id));
+
+  res.json(GetSavedPredictionsResponse.parse({ tipo, predictions: rows }));
+});
+
+// DELETE /api/lottery/saved/item/:id — eliminar una predicción
+router.delete("/saved/item/:id", async (req: Request, res: Response): Promise<void> => {
+  const params = DeleteSavedPredictionParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  await db.delete(prediccionesGuardadasTable).where(eq(prediccionesGuardadasTable.id, params.data.id));
+  res.json(DeleteSavedPredictionResponse.parse({ message: "Predicción eliminada" }));
+});
+
+// POST /api/lottery/saved/compare/:id — comparar con el último sorteo real
+router.post("/saved/compare/:id", async (req: Request, res: Response): Promise<void> => {
+  const params = ComparePredictionParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  const [pred] = await db
+    .select()
+    .from(prediccionesGuardadasTable)
+    .where(eq(prediccionesGuardadasTable.id, params.data.id));
+
+  if (!pred) { res.status(404).json({ error: "Predicción no encontrada" }); return; }
+
+  const tipo = pred.tipo as LotteryType;
+  const table = getTable(tipo);
+
+  const [lastDraw] = await db
+    .select()
+    .from(table)
+    .orderBy(sql`to_date(${table.fecha}, 'DD/MM/YYYY') DESC`)
+    .limit(1);
+
+  if (!lastDraw) { res.status(400).json({ error: "No hay sorteos reales para comparar" }); return; }
+
+  const predNums = new Set([pred.n1, pred.n2, pred.n3, pred.n4, pred.n5]);
+  const drawNums = [lastDraw.n1, lastDraw.n2, lastDraw.n3, lastDraw.n4, lastDraw.n5];
+  const aciertos = drawNums.filter((n) => predNums.has(n)).length;
+  const aciertosEspecial = pred.especial === lastDraw.especial;
+  const premio = calcPrize(tipo, aciertos, aciertosEspecial);
+
+  const [updated] = await db
+    .update(prediccionesGuardadasTable)
+    .set({ fechaSorteo: lastDraw.fecha, aciertos, aciertosEspecial, premio })
+    .where(eq(prediccionesGuardadasTable.id, params.data.id))
+    .returning();
+
+  res.json(ComparePredictionResponse.parse({
+    ...updated,
+    fechaSorteo: updated?.fechaSorteo ?? null,
+    aciertos: updated?.aciertos ?? null,
+    aciertosEspecial: updated?.aciertosEspecial ?? null,
+    premio: updated?.premio ?? null,
+  }));
 });
 
 export default router;

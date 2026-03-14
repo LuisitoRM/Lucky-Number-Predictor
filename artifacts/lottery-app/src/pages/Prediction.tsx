@@ -1,27 +1,57 @@
 import React, { useState } from "react";
-import { usePredict, type LoteryType } from "@workspace/api-client-react";
+import { usePredict, useSavePrediction, type LoteryType } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LotteryBall } from "@/components/LotteryBall";
 import { ComparisonSection } from "@/components/ComparisonSection";
-import { Dices, AlertTriangle, Cpu, CheckCircle2, Flame, Snowflake, Clock } from "lucide-react";
+import { Dices, AlertTriangle, Cpu, CheckCircle2, Flame, Snowflake, Clock, Bookmark, BookmarkCheck, List } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "wouter";
 
 export default function PredictionPage({ tipo }: { tipo: string }) {
   const validTipo = tipo as LoteryType;
-  
+  const queryClient = useQueryClient();
+
   const { mutate, isPending, data, isError, error } = usePredict();
+  const { mutate: saveMutate, isPending: isSaving } = useSavePrediction();
   const [isRevealing, setIsRevealing] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const handlePredict = () => {
     setIsRevealing(true);
+    setSaved(false);
     mutate({ tipo: validTipo }, {
       onSettled: () => {
-        // Keep revealing state active to allow animations to play
         setTimeout(() => setIsRevealing(false), 2000); 
       }
     });
+  };
+
+  const handleSave = () => {
+    if (!data) return;
+    saveMutate(
+      {
+        tipo: validTipo,
+        body: {
+          n1: data.numeros[0]!,
+          n2: data.numeros[1]!,
+          n3: data.numeros[2]!,
+          n4: data.numeros[3]!,
+          n5: data.numeros[4]!,
+          especial: data.especial,
+          suma: data.suma,
+          metodologia: data.metodologia,
+        },
+      },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          queryClient.invalidateQueries({ queryKey: [`/api/saved/${validTipo}`] });
+        },
+      }
+    );
   };
 
   const specialBallName = tipo === 'baloto' ? 'Super Balota' : tipo === 'revancha' ? 'RSB' : 'Powerball';
@@ -216,11 +246,34 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
                 </div>
               )}
 
-              {/* Methodology Tag */}
-              <div className="text-center">
+              {/* Methodology Tag + Save Button */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <span className="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-muted-foreground font-mono">
                   {data.metodologia}
                 </span>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant={saved ? "outline" : "default"}
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isSaving || saved}
+                    className={saved ? "border-emerald-500/50 text-emerald-400" : ""}
+                  >
+                    {saved ? (
+                      <><BookmarkCheck className="w-4 h-4 mr-2" />Guardada</>
+                    ) : isSaving ? (
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Guardando...</>
+                    ) : (
+                      <><Bookmark className="w-4 h-4 mr-2" />Guardar combinación</>
+                    )}
+                  </Button>
+                  <Link href={`/${tipo}/guardadas`}>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                      <List className="w-4 h-4 mr-2" />
+                      Ver guardadas
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
               {/* Historical Comparison */}

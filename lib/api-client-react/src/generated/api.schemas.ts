@@ -108,3 +108,41 @@ export type GetHistoryParams = {
   page?: number;
   limit?: number;
 };
+
+export interface SavedPrediction {
+  id: number;
+  tipo: string;
+  fechaGeneracion: string;
+  n1: number;
+  n2: number;
+  n3: number;
+  n4: number;
+  n5: number;
+  especial: number;
+  suma: number;
+  metodologia: string;
+  fechaSorteo: string | null;
+  aciertos: number | null;
+  aciertosEspecial: boolean | null;
+  premio: string | null;
+}
+
+export interface SavedPredictionsResponse {
+  tipo: string;
+  predictions: SavedPrediction[];
+}
+
+export interface SavePredictionBody {
+  n1: number;
+  n2: number;
+  n3: number;
+  n4: number;
+  n5: number;
+  especial: number;
+  suma: number;
+  metodologia: string;
+}
+
+export interface DeletePredictionResponse {
+  message: string;
+}

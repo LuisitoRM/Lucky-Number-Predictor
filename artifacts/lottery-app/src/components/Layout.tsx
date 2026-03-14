@@ -7,7 +7,8 @@ import {
   UploadCloud, 
   LineChart, 
   History,
-  Activity
+  Activity,
+  Bookmark
 } from "lucide-react";
 import type { LoteryType } from "@workspace/api-client-react";
 
@@ -100,6 +101,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
               >
                 <History className="w-5 h-5" />
                 Historial
+              </Link>
+
+              <Link 
+                href={`/${lottery}/guardadas`} 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                  location === `/${lottery}/guardadas` ? "bg-white/10 text-white font-medium shadow-sm" : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <Bookmark className="w-5 h-5" />
+                Guardadas
               </Link>
             </div>
           ))}

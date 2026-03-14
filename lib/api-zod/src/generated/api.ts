@@ -144,3 +144,64 @@ export const PredictResponse = zod.object({
   coldNumbers: zod.array(zod.number()),
   gapEspecial: zod.number(),
 });
+
+/**
+ * Saved predictions — guardar, listar, comparar
+ */
+export const SavedPredictionShape = zod.object({
+  id: zod.number(),
+  tipo: zod.string(),
+  fechaGeneracion: zod.string(),
+  n1: zod.number(),
+  n2: zod.number(),
+  n3: zod.number(),
+  n4: zod.number(),
+  n5: zod.number(),
+  especial: zod.number(),
+  suma: zod.number(),
+  metodologia: zod.string(),
+  fechaSorteo: zod.string().nullable(),
+  aciertos: zod.number().nullable(),
+  aciertosEspecial: zod.boolean().nullable(),
+  premio: zod.string().nullable(),
+});
+
+export const SavePredictionParams = zod.object({
+  tipo: zod.enum(["baloto", "revancha", "powerball"]),
+});
+
+export const SavePredictionBody = zod.object({
+  n1: zod.number(),
+  n2: zod.number(),
+  n3: zod.number(),
+  n4: zod.number(),
+  n5: zod.number(),
+  especial: zod.number(),
+  suma: zod.number(),
+  metodologia: zod.string(),
+});
+
+export const SavePredictionResponse = SavedPredictionShape;
+
+export const GetSavedPredictionsParams = zod.object({
+  tipo: zod.enum(["baloto", "revancha", "powerball"]),
+});
+
+export const GetSavedPredictionsResponse = zod.object({
+  tipo: zod.string(),
+  predictions: zod.array(SavedPredictionShape),
+});
+
+export const DeleteSavedPredictionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteSavedPredictionResponse = zod.object({
+  message: zod.string(),
+});
+
+export const ComparePredictionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ComparePredictionResponse = SavedPredictionShape;
