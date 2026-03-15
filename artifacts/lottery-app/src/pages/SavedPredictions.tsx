@@ -70,6 +70,7 @@ function PredictionCard({
   onCompare,
   isDeleting,
   isComparing,
+  compareError,
 }: {
   pred: SavedPrediction;
   tipo: LoteryType;
@@ -77,6 +78,7 @@ function PredictionCard({
   onCompare: () => void;
   isDeleting: boolean;
   isComparing: boolean;
+  compareError?: string | null;
 }) {
   const nums = [pred.n1, pred.n2, pred.n3, pred.n4, pred.n5];
   const hasResult = pred.aciertos !== null;
@@ -122,9 +124,26 @@ function PredictionCard({
         {/* Comparison result */}
         {hasResult ? (
           <div className="pt-2 border-t border-white/5 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Comparado con sorteo real del <span className="text-white font-medium">{pred.fechaSorteo}</span>
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Sorteo del{" "}
+                <span className="text-white font-medium">{pred.fechaSorteo}</span>
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground/50 hover:text-primary shrink-0"
+                title="Recomparar con sorteo posterior"
+                onClick={onCompare}
+                disabled={isComparing}
+              >
+                {isComparing ? (
+                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3 h-3" />
+                )}
+              </Button>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <AciertosBadge aciertos={pred.aciertos!} especial={pred.aciertosEspecial ?? false} />
               {pred.premio && pred.premio !== "Sin premio" && (
@@ -136,12 +155,18 @@ function PredictionCard({
                 </span>
               )}
             </div>
+            {compareError && (
+              <p className="text-[11px] text-amber-400/90 flex items-start gap-1.5 leading-tight">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                {compareError}
+              </p>
+            )}
           </div>
         ) : (
-          <div className="pt-2 border-t border-white/5">
+          <div className="pt-2 border-t border-white/5 space-y-2">
             <Button
               variant="outline"
-             
+              size="sm"
               className="w-full border-primary/30 text-primary hover:bg-primary/10"
               onClick={onCompare}
               disabled={isComparing}
@@ -149,9 +174,15 @@ function PredictionCard({
               {isComparing ? (
                 <><div className="w-3.5 h-3.5 border border-primary/30 border-t-primary rounded-full animate-spin mr-2" />Comparando...</>
               ) : (
-                <><RefreshCw className="w-3.5 h-3.5 mr-2" />Comparar con último sorteo</>
+                <><RefreshCw className="w-3.5 h-3.5 mr-2" />Comparar con sorteo posterior</>
               )}
             </Button>
+            {compareError && (
+              <p className="text-[11px] text-amber-400/90 flex items-start gap-1.5 leading-tight">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                {compareError}
+              </p>
+            )}
           </div>
         )}
       </CardContent>
@@ -164,9 +195,10 @@ function LotterySection({ tipo }: { tipo: LoteryType }) {
   const { data, isLoading, isError } = useGetSavedPredictions(tipo);
   const deleteMutation = useDeleteSavedPrediction();
   const compareMutation = useComparePrediction();
+  const [compareErrors, setCompareErrors] = React.useState<Record<number, string>>({});
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: [`/api/lottery/saved/${tipo}`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/saved/${tipo}`] });
 
   if (isLoading) {
     return (
@@ -188,6 +220,22 @@ function LotterySection({ tipo }: { tipo: LoteryType }) {
 
   const predictions = data?.predictions ?? [];
 
+  const handleCompare = (id: number) => {
+    setCompareErrors((prev) => ({ ...prev, [id]: "" }));
+    compareMutation.mutate(
+      { id },
+      {
+        onSuccess: invalidate,
+        onError: (err: unknown) => {
+          const msg =
+            (err as { data?: { error?: string } })?.data?.error ??
+            "No hay sorteo posterior registrado. Carga el resultado del próximo sorteo primero.";
+          setCompareErrors((prev) => ({ ...prev, [id]: msg }));
+        },
+      }
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -202,7 +250,7 @@ function LotterySection({ tipo }: { tipo: LoteryType }) {
           </span>
         </h2>
         <Link href={`/${tipo}/prediccion`}>
-          <Button variant="ghost" className="text-muted-foreground hover:text-primary text-xs">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary text-xs">
             <Dices className="w-3.5 h-3.5 mr-1.5" />
             Generar nueva
           </Button>
@@ -214,7 +262,7 @@ function LotterySection({ tipo }: { tipo: LoteryType }) {
           <Bookmark className="w-8 h-8 mb-3 opacity-30" />
           <p className="text-sm">No hay predicciones guardadas para {LOTTERY_LABELS[tipo]}</p>
           <Link href={`/${tipo}/prediccion`}>
-            <Button variant="link" className="mt-2 text-primary text-xs">
+            <Button variant="link" size="sm" className="mt-2 text-primary text-xs">
               Generar y guardar una combinación
             </Button>
           </Link>
@@ -228,12 +276,11 @@ function LotterySection({ tipo }: { tipo: LoteryType }) {
               tipo={tipo}
               isDeleting={deleteMutation.isPending && deleteMutation.variables?.id === pred.id}
               isComparing={compareMutation.isPending && compareMutation.variables?.id === pred.id}
+              compareError={compareErrors[pred.id]}
               onDelete={() =>
                 deleteMutation.mutate({ id: pred.id }, { onSuccess: invalidate })
               }
-              onCompare={() =>
-                compareMutation.mutate({ id: pred.id }, { onSuccess: invalidate })
-              }
+              onCompare={() => handleCompare(pred.id)}
             />
           ))}
         </div>

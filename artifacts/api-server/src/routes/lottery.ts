@@ -368,7 +368,7 @@ router.delete("/saved/item/:id", async (req: Request, res: Response): Promise<vo
   res.json(DeleteSavedPredictionResponse.parse({ message: "Predicción eliminada" }));
 });
 
-// POST /api/lottery/saved/compare/:id — comparar con el último sorteo real
+// POST /api/lottery/saved/compare/:id — comparar con el primer sorteo POSTERIOR a la predicción
 router.post("/saved/compare/:id", async (req: Request, res: Response): Promise<void> => {
   const params = ComparePredictionParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "ID inválido" }); return; }
@@ -383,23 +383,33 @@ router.post("/saved/compare/:id", async (req: Request, res: Response): Promise<v
   const tipo = pred.tipo as LotteryType;
   const table = getTable(tipo);
 
-  const [lastDraw] = await db
+  // Extraer solo la fecha (YYYY-MM-DD) del timestamp ISO de la predicción
+  const predDateISO = pred.fechaGeneracion.split("T")[0]!; // e.g. "2026-03-14"
+
+  // Buscar el PRIMER sorteo cuya fecha sea >= al día que se generó la predicción
+  const [targetDraw] = await db
     .select()
     .from(table)
-    .orderBy(sql`to_date(${table.fecha}, 'DD/MM/YYYY') DESC`)
+    .where(sql`to_date(${table.fecha}, 'DD/MM/YYYY') >= ${predDateISO}::date`)
+    .orderBy(sql`to_date(${table.fecha}, 'DD/MM/YYYY') ASC`)
     .limit(1);
 
-  if (!lastDraw) { res.status(400).json({ error: "No hay sorteos reales para comparar" }); return; }
+  if (!targetDraw) {
+    res.status(400).json({
+      error: `Aún no hay sorteos registrados posteriores al ${predDateISO} para ${tipo}. Carga el resultado del próximo sorteo primero.`,
+    });
+    return;
+  }
 
   const predNums = new Set([pred.n1, pred.n2, pred.n3, pred.n4, pred.n5]);
-  const drawNums = [lastDraw.n1, lastDraw.n2, lastDraw.n3, lastDraw.n4, lastDraw.n5];
+  const drawNums = [targetDraw.n1, targetDraw.n2, targetDraw.n3, targetDraw.n4, targetDraw.n5];
   const aciertos = drawNums.filter((n) => predNums.has(n)).length;
-  const aciertosEspecial = pred.especial === lastDraw.especial;
+  const aciertosEspecial = pred.especial === targetDraw.especial;
   const premio = calcPrize(tipo, aciertos, aciertosEspecial);
 
   const [updated] = await db
     .update(prediccionesGuardadasTable)
-    .set({ fechaSorteo: lastDraw.fecha, aciertos, aciertosEspecial, premio })
+    .set({ fechaSorteo: targetDraw.fecha, aciertos, aciertosEspecial, premio })
     .where(eq(prediccionesGuardadasTable.id, params.data.id))
     .returning();
 
