@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LotteryBall } from "@/components/LotteryBall";
 import { ComparisonSection } from "@/components/ComparisonSection";
-import { Dices, AlertTriangle, Cpu, CheckCircle2, Flame, Snowflake, Clock, Bookmark, BookmarkCheck, List } from "lucide-react";
+import { Dices, AlertTriangle, Cpu, CheckCircle2, Flame, Snowflake, Clock, Bookmark, BookmarkCheck, List, Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
@@ -18,11 +18,12 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
   const { mutate: saveMutate, isPending: isSaving } = useSavePrediction();
   const [isRevealing, setIsRevealing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [modoJackpot, setModoJackpot] = useState(false);
 
   const handlePredict = () => {
     setIsRevealing(true);
     setSaved(false);
-    mutate({ tipo: validTipo }, {
+    mutate({ tipo: validTipo, body: { modoJackpot } }, {
       onSettled: () => {
         setTimeout(() => setIsRevealing(false), 2000); 
       }
@@ -54,7 +55,7 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
     );
   };
 
-  const specialBallName = tipo === 'baloto' ? 'Super Balota' : tipo === 'revancha' ? 'RSB' : 'Powerball';
+  const isJackpotMode = data?.metodologia?.includes("JACKPOT-MODE");
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-500">
@@ -71,11 +72,38 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
         </p>
       </div>
 
+      {/* Modo Jackpot Toggle */}
+      <div className="flex justify-center">
+        <button
+          onClick={() => setModoJackpot(v => !v)}
+          className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all duration-300 ${
+            modoJackpot
+              ? "bg-yellow-500/15 border-yellow-500/50 text-yellow-300"
+              : "bg-white/5 border-white/10 text-muted-foreground hover:text-white hover:border-white/20"
+          }`}
+        >
+          <div className={`w-10 h-5 rounded-full flex items-center transition-all duration-300 px-0.5 ${modoJackpot ? "bg-yellow-500" : "bg-white/20"}`}>
+            <div className={`w-4 h-4 rounded-full bg-white shadow transition-all duration-300 ${modoJackpot ? "translate-x-5" : "translate-x-0"}`} />
+          </div>
+          <div className="text-left">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Trophy className="w-4 h-4" />
+              Modo Jackpot
+            </div>
+            <p className="text-[11px] opacity-70 mt-0.5">
+              {modoJackpot
+                ? "Activo — pondera números históricos de jackpots (boost 2.5×)"
+                : "Inactivo — análisis de frecuencia estándar"}
+            </p>
+          </div>
+        </button>
+      </div>
+
       <div className="flex justify-center">
         <Button 
           size="lg" 
-          variant="glow"
-          className="h-16 px-12 text-xl rounded-full"
+          variant={modoJackpot ? "outline" : "glow"}
+          className={`h-16 px-12 text-xl rounded-full ${modoJackpot ? "border-yellow-500/50 text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20" : ""}`}
           onClick={handlePredict}
           disabled={isPending || isRevealing}
         >
@@ -86,8 +114,8 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
             </>
           ) : (
             <>
-              <Dices className="w-6 h-6 mr-3" />
-              Generar Combinación Óptima
+              {modoJackpot ? <Trophy className="w-6 h-6 mr-3" /> : <Dices className="w-6 h-6 mr-3" />}
+              {modoJackpot ? "Generar en Modo Jackpot" : "Generar Combinación Óptima"}
             </>
           )}
         </Button>
@@ -111,13 +139,15 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
                className="flex flex-col items-center text-primary space-y-6"
              >
                <div className="relative w-32 h-32">
-                 <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-                 <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                 <div className={`absolute inset-0 border-4 rounded-full ${modoJackpot ? "border-yellow-500/20" : "border-primary/20"}`}></div>
+                 <div className={`absolute inset-0 border-4 border-t-transparent rounded-full animate-spin ${modoJackpot ? "border-yellow-500" : "border-primary"}`}></div>
                  <div className="absolute inset-0 flex items-center justify-center">
-                   <Dices className="w-10 h-10 animate-pulse" />
+                   {modoJackpot ? <Trophy className="w-10 h-10 text-yellow-400 animate-pulse" /> : <Dices className="w-10 h-10 animate-pulse" />}
                  </div>
                </div>
-               <p className="font-mono text-sm tracking-widest">ANALIZANDO MATRICES...</p>
+               <p className="font-mono text-sm tracking-widest">
+                 {modoJackpot ? "APLICANDO PATRÓN JACKPOT..." : "ANALIZANDO MATRICES..."}
+               </p>
              </motion.div>
           ) : data && (
             <motion.div 
@@ -126,9 +156,19 @@ export default function PredictionPage({ tipo }: { tipo: string }) {
               animate={{ opacity: 1 }}
               className="w-full space-y-12"
             >
+              {/* Jackpot mode badge */}
+              {isJackpotMode && (
+                <div className="flex justify-center">
+                  <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-xs font-semibold">
+                    <Trophy className="w-3.5 h-3.5" />
+                    Generado con Modo Jackpot — pesos amplificados por jackpots históricos
+                  </span>
+                </div>
+              )}
+
               {/* Balls Container */}
-              <div className="flex flex-wrap justify-center gap-4 sm:gap-6 bg-black/20 p-8 sm:p-12 rounded-[3rem] border border-white/5 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+              <div className={`flex flex-wrap justify-center gap-4 sm:gap-6 bg-black/20 p-8 sm:p-12 rounded-[3rem] border shadow-2xl relative overflow-hidden ${isJackpotMode ? "border-yellow-500/20" : "border-white/5"}`}>
+                <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent ${isJackpotMode ? "via-yellow-500/50" : "via-primary/50"} to-transparent`}></div>
                 
                 {data.numeros.map((num, i) => (
                   <LotteryBall 

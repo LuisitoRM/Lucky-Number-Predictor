@@ -6,6 +6,7 @@ import {
   historialRevanchaTable,
   historialPowerballTable,
   prediccionesGuardadasTable,
+  jackpotsTable,
 } from "@workspace/db";
 import { sql, count, eq, asc } from "drizzle-orm";
 import {
@@ -18,6 +19,7 @@ import {
   GetFrequenciesParams,
   GetFrequenciesResponse,
   PredictParams,
+  PredictBody,
   PredictResponse,
   SavePredictionParams,
   SavePredictionBody,
@@ -258,6 +260,9 @@ router.post("/predict/:tipo", async (req: Request, res: Response): Promise<void>
     return;
   }
 
+  const body = PredictBody.safeParse(req.body ?? {});
+  const modoJackpot = body.success ? (body.data.modoJackpot ?? false) : false;
+
   const tipo = params.data.tipo as LotteryType;
   const table = getTable(tipo);
 
@@ -272,7 +277,25 @@ router.post("/predict/:tipo", async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  const result = runPrediction({ rows, tipo });
+  let jackpotRows: typeof rows = [];
+  if (modoJackpot) {
+    const jackpots = await db
+      .select()
+      .from(jackpotsTable)
+      .where(eq(jackpotsTable.tipo, tipo));
+    jackpotRows = jackpots.map((j) => ({
+      id: j.id,
+      fecha: j.fecha,
+      n1: j.n1,
+      n2: j.n2,
+      n3: j.n3,
+      n4: j.n4,
+      n5: j.n5,
+      especial: j.especial,
+    }));
+  }
+
+  const result = runPrediction({ rows, tipo, jackpotRows: modoJackpot ? jackpotRows : undefined });
 
   res.json(PredictResponse.parse({ tipo, ...result }));
 });

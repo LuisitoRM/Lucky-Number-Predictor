@@ -13,13 +13,6 @@ export const LOTTERY_CONFIG: Record<LotteryType, LotteryConfig> = {
   powerball: { n: 5, maxMain: 69, maxSpec: 26, sumRange: [130, 221] },
 };
 
-/**
- * Selects `count` unique numbers from `numbers[]` using weighted sampling
- * without replacement. Weights are re-normalised after each draw.
- *
- * Bug fix v2: defaults idx to last element when floating-point drift causes
- * cumulative sum to fall short of rand (was silently biasing toward index 0).
- */
 function weightedChoice(numbers: number[], weights: number[], count: number): number[] {
   const totalWeight = weights.reduce((a, b) => a + b, 0);
   const normalised = weights.map((w) => w / totalWeight);
@@ -52,12 +45,15 @@ function weightedChoice(numbers: number[], weights: number[], count: number): nu
   return result;
 }
 
+export interface DrawRow {
+  n1: number; n2: number; n3: number; n4: number; n5: number;
+  especial: number;
+}
+
 export interface PredictionInput {
-  rows: Array<{
-    n1: number; n2: number; n3: number; n4: number; n5: number;
-    especial: number;
-  }>;
+  rows: DrawRow[];
   tipo: LotteryType;
+  jackpotRows?: DrawRow[];
 }
 
 export interface PredictionResult {
@@ -76,9 +72,11 @@ export interface PredictionResult {
 
 const RECENCY_DECAY = 0.997;
 const ITERATIONS = 50_000;
+const JACKPOT_BOOST = 2.5;
 
-export function runPrediction({ rows, tipo }: PredictionInput): PredictionResult {
+export function runPrediction({ rows, tipo, jackpotRows }: PredictionInput): PredictionResult {
   const cfg = LOTTERY_CONFIG[tipo];
+  const modoJackpot = (jackpotRows?.length ?? 0) > 0;
 
   const mainRange = Array.from({ length: cfg.maxMain }, (_, i) => i + 1);
   const specRange  = Array.from({ length: cfg.maxSpec  }, (_, i) => i + 1);
@@ -105,6 +103,39 @@ export function runPrediction({ rows, tipo }: PredictionInput): PredictionResult
 
     if (row.especial >= 1 && row.especial <= cfg.maxSpec) {
       specCounts[row.especial] += decay;
+    }
+  }
+
+  // Modo Jackpot: boost numbers that appear in jackpot draws
+  if (modoJackpot && jackpotRows) {
+    const jackpotMainFreq: Record<number, number> = {};
+    const jackpotSpecFreq: Record<number, number> = {};
+
+    for (const row of jackpotRows) {
+      for (const num of [row.n1, row.n2, row.n3, row.n4, row.n5]) {
+        if (num >= 1 && num <= cfg.maxMain) {
+          jackpotMainFreq[num] = (jackpotMainFreq[num] ?? 0) + 1;
+        }
+      }
+      if (row.especial >= 1 && row.especial <= cfg.maxSpec) {
+        jackpotSpecFreq[row.especial] = (jackpotSpecFreq[row.especial] ?? 0) + 1;
+      }
+    }
+
+    const maxJackpotFreq = Math.max(1, ...Object.values(jackpotMainFreq));
+
+    for (const n of mainRange) {
+      if (jackpotMainFreq[n]) {
+        const boostFactor = 1 + (JACKPOT_BOOST - 1) * (jackpotMainFreq[n] / maxJackpotFreq);
+        mainCounts[n] *= boostFactor;
+      }
+    }
+
+    for (const n of specRange) {
+      if (jackpotSpecFreq[n]) {
+        const boostFactor = 1 + (JACKPOT_BOOST - 1) * (jackpotSpecFreq[n] / jackpotRows.length);
+        specCounts[n] *= boostFactor;
+      }
     }
   }
 
@@ -176,6 +207,10 @@ export function runPrediction({ rows, tipo }: PredictionInput): PredictionResult
     gapEspecial++;
   }
 
+  const modoTag = modoJackpot
+    ? ` | JACKPOT-MODE boost=${JACKPOT_BOOST}x (${jackpotRows!.length} jackpots)`
+    : "";
+
   return {
     numeros,
     especial,
@@ -184,7 +219,7 @@ export function runPrediction({ rows, tipo }: PredictionInput): PredictionResult
     validSimulations:  validCombos.length,
     totalSimulations:  ITERATIONS,
     basedOnDraws:      rows.length,
-    metodologia: `Neural-MonteCarlo-v2.0 (${tipo}) | ${rows.length} sorteos | decay=${RECENCY_DECAY} | par/impar + décadas | ${validCombos.length}/${ITERATIONS} sim. válidas`,
+    metodologia: `Neural-MonteCarlo-v2.0 (${tipo}) | ${rows.length} sorteos | decay=${RECENCY_DECAY} | par/impar + décadas | ${validCombos.length}/${ITERATIONS} sim. válidas${modoTag}`,
     hotNumbers,
     coldNumbers,
     gapEspecial,

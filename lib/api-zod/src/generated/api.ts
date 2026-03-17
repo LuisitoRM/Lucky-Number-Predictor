@@ -130,6 +130,10 @@ export const PredictParams = zod.object({
   tipo: zod.enum(["baloto", "revancha", "powerball"]),
 });
 
+export const PredictBody = zod.object({
+  modoJackpot: zod.boolean().optional().default(false),
+});
+
 export const PredictResponse = zod.object({
   tipo: zod.enum(["baloto", "revancha", "powerball"]),
   numeros: zod.array(zod.number()),
@@ -205,3 +209,80 @@ export const ComparePredictionParams = zod.object({
 });
 
 export const ComparePredictionResponse = SavedPredictionShape;
+
+/**
+ * Jackpots — registro de sorteos con premio mayor
+ */
+export const JackpotShape = zod.object({
+  id: zod.number(),
+  tipo: zod.string(),
+  fecha: zod.string(),
+  n1: zod.number(),
+  n2: zod.number(),
+  n3: zod.number(),
+  n4: zod.number(),
+  n5: zod.number(),
+  especial: zod.number(),
+  monto: zod.number(),
+  moneda: zod.string(),
+  numGanadores: zod.number(),
+  sorteosAcumulados: zod.number(),
+  ciudad: zod.string().nullable(),
+  notas: zod.string().nullable(),
+});
+
+export const GetJackpotsParams = zod.object({
+  tipo: zod.enum(["baloto", "revancha", "powerball"]),
+});
+
+export const GetJackpotsResponse = zod.object({
+  tipo: zod.string(),
+  jackpots: zod.array(JackpotShape),
+});
+
+export const GetJackpotStatsParams = zod.object({
+  tipo: zod.enum(["baloto", "revancha", "powerball"]),
+});
+
+export const GetJackpotStatsResponse = zod.object({
+  tipo: zod.string(),
+  totalJackpots: zod.number(),
+  lastJackpot: JackpotShape.nullable(),
+  avgCycleDraws: zod.number(),
+  currentStreak: zod.number(),
+  jackpotProbabilityPct: zod.number(),
+  cycles: zod.array(zod.number()),
+  montosHistory: zod.array(zod.object({ fecha: zod.string(), monto: zod.number() })),
+  numberFrequency: zod.array(zod.object({ number: zod.number(), count: zod.number() })),
+  antinumbers: zod.array(zod.number()),
+});
+
+export const AddJackpotParams = zod.object({
+  tipo: zod.enum(["baloto", "revancha", "powerball"]),
+});
+
+export const AddJackpotBody = zod.object({
+  fecha: zod.string(),
+  n1: zod.number(),
+  n2: zod.number(),
+  n3: zod.number(),
+  n4: zod.number(),
+  n5: zod.number(),
+  especial: zod.number(),
+  monto: zod.number(),
+  moneda: zod.string().default("COP"),
+  numGanadores: zod.number().default(1),
+  sorteosAcumulados: zod.number().default(0),
+  ciudad: zod.string().optional().nullable(),
+  notas: zod.string().optional().nullable(),
+});
+
+export const AddJackpotResponse = JackpotShape;
+
+export const DeleteJackpotParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteJackpotResponse = zod.object({
+  message: zod.string(),
+});

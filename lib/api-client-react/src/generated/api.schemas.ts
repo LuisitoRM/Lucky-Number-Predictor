@@ -98,6 +98,9 @@ export interface PredictionResponse {
   totalSimulations: number;
   basedOnDraws: number;
   metodologia: string;
+  hotNumbers: number[];
+  coldNumbers: number[];
+  gapEspecial: number;
 }
 
 export type UploadCsvBody = {
@@ -107,6 +110,10 @@ export type UploadCsvBody = {
 export type GetHistoryParams = {
   page?: number;
   limit?: number;
+};
+
+export type PredictBody = {
+  modoJackpot?: boolean;
 };
 
 export interface SavedPrediction {
@@ -145,4 +152,66 @@ export interface SavePredictionBody {
 
 export interface DeletePredictionResponse {
   message: string;
+}
+
+export interface Jackpot {
+  id: number;
+  tipo: string;
+  fecha: string;
+  n1: number;
+  n2: number;
+  n3: number;
+  n4: number;
+  n5: number;
+  especial: number;
+  monto: number;
+  moneda: string;
+  numGanadores: number;
+  sorteosAcumulados: number;
+  ciudad: string | null;
+  notas: string | null;
+}
+
+export interface JackpotsResponse {
+  tipo: string;
+  jackpots: Jackpot[];
+}
+
+export interface JackpotMontoHistory {
+  fecha: string;
+  monto: number;
+}
+
+export interface JackpotNumberFreq {
+  number: number;
+  count: number;
+}
+
+export interface JackpotStatsResponse {
+  tipo: string;
+  totalJackpots: number;
+  lastJackpot: Jackpot | null;
+  avgCycleDraws: number;
+  currentStreak: number;
+  jackpotProbabilityPct: number;
+  cycles: number[];
+  montosHistory: JackpotMontoHistory[];
+  numberFrequency: JackpotNumberFreq[];
+  antinumbers: number[];
+}
+
+export interface AddJackpotBody {
+  fecha: string;
+  n1: number;
+  n2: number;
+  n3: number;
+  n4: number;
+  n5: number;
+  especial: number;
+  monto: number;
+  moneda?: string;
+  numGanadores?: number;
+  sorteosAcumulados?: number;
+  ciudad?: string | null;
+  notas?: string | null;
 }

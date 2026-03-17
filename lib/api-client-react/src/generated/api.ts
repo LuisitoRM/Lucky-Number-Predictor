@@ -17,14 +17,19 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddJackpotBody,
   DeletePredictionResponse,
   ErrorResponse,
   FrequencyResponse,
   GetHistoryParams,
   HealthStatus,
   HistoryResponse,
+  Jackpot,
+  JackpotsResponse,
+  JackpotStatsResponse,
   LoteryType,
   PredictionResponse,
+  PredictBody,
   SavedPrediction,
   SavedPredictionsResponse,
   SavePredictionBody,
@@ -94,10 +99,6 @@ export type HealthCheckQueryResult = NonNullable<
 >;
 export type HealthCheckQueryError = ErrorType<unknown>;
 
-/**
- * @summary Health check
- */
-
 export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
@@ -165,10 +166,6 @@ export type GetStatusQueryResult = NonNullable<
   Awaited<ReturnType<typeof getStatus>>
 >;
 export type GetStatusQueryError = ErrorType<unknown>;
-
-/**
- * @summary Get data status
- */
 
 export function useGetStatus<
   TData = Awaited<ReturnType<typeof getStatus>>,
@@ -253,9 +250,6 @@ export type UploadCsvMutationResult = NonNullable<
 export type UploadCsvMutationBody = BodyType<UploadCsvBody>;
 export type UploadCsvMutationError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Upload CSV historical data
- */
 export const useUploadCsv = <
   TError = ErrorType<ErrorResponse>,
   TContext = unknown,
@@ -358,10 +352,6 @@ export type GetHistoryQueryResult = NonNullable<
 >;
 export type GetHistoryQueryError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Get paginated history
- */
-
 export function useGetHistory<
   TData = Awaited<ReturnType<typeof getHistory>>,
   TError = ErrorType<ErrorResponse>,
@@ -447,10 +437,6 @@ export type GetFrequenciesQueryResult = NonNullable<
 >;
 export type GetFrequenciesQueryError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Get frequency analysis
- */
-
 export function useGetFrequencies<
   TData = Awaited<ReturnType<typeof getFrequencies>>,
   TError = ErrorType<ErrorResponse>,
@@ -476,6 +462,7 @@ export function useGetFrequencies<
 
 /**
  * Generates a suggested combination using weighted frequency + Monte Carlo simulation
+ * Accepts optional modoJackpot body parameter
  * @summary Generate prediction
  */
 export const getPredictUrl = (tipo: LoteryType) => {
@@ -484,11 +471,14 @@ export const getPredictUrl = (tipo: LoteryType) => {
 
 export const predict = async (
   tipo: LoteryType,
+  body?: PredictBody,
   options?: RequestInit,
 ): Promise<PredictionResponse> => {
   return customFetch<PredictionResponse>(getPredictUrl(tipo), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
   });
 };
 
@@ -499,14 +489,14 @@ export const getPredictMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof predict>>,
     TError,
-    { tipo: LoteryType },
+    { tipo: LoteryType; body?: PredictBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof predict>>,
   TError,
-  { tipo: LoteryType },
+  { tipo: LoteryType; body?: PredictBody },
   TContext
 > => {
   const mutationKey = ["predict"];
@@ -520,11 +510,10 @@ export const getPredictMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof predict>>,
-    { tipo: LoteryType }
+    { tipo: LoteryType; body?: PredictBody }
   > = (props) => {
-    const { tipo } = props ?? {};
-
-    return predict(tipo, requestOptions);
+    const { tipo, body } = props ?? {};
+    return predict(tipo, body, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -536,9 +525,6 @@ export type PredictMutationResult = NonNullable<
 
 export type PredictMutationError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Generate prediction
- */
 export const usePredict = <
   TError = ErrorType<ErrorResponse>,
   TContext = unknown,
@@ -546,14 +532,14 @@ export const usePredict = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof predict>>,
     TError,
-    { tipo: LoteryType },
+    { tipo: LoteryType; body?: PredictBody },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof predict>>,
   TError,
-  { tipo: LoteryType },
+  { tipo: LoteryType; body?: PredictBody },
   TContext
 > => {
   return useMutation(getPredictMutationOptions(options));
@@ -563,7 +549,6 @@ export const usePredict = <
    SAVED PREDICTIONS
    ───────────────────────────────────────────────── */
 
-// GET saved predictions for a lottery
 export const getSavedPredictionsUrl = (tipo: LoteryType) =>
   `/api/saved/${tipo}`;
 
@@ -596,7 +581,6 @@ export const useGetSavedPredictions = <
   return { ...query, queryKey };
 };
 
-// POST save prediction
 export const savePrediction = (
   tipo: LoteryType,
   body: SavePredictionBody,
@@ -631,7 +615,6 @@ export const useSavePrediction = <
   });
 };
 
-// DELETE saved prediction
 export const deleteSavedPrediction = (
   id: number,
   options?: RequestInit,
@@ -663,7 +646,6 @@ export const useDeleteSavedPrediction = <
   });
 };
 
-// POST compare prediction with latest draw
 export const comparePrediction = (
   id: number,
   options?: RequestInit,
@@ -691,6 +673,136 @@ export const useComparePrediction = <
 > => {
   return useMutation({
     mutationFn: ({ id }) => comparePrediction(id),
+    ...options?.mutation,
+  });
+};
+
+/* ─────────────────────────────────────────────────
+   JACKPOTS
+   ───────────────────────────────────────────────── */
+
+export const getJackpotsUrl = (tipo: LoteryType) => `/api/jackpots/${tipo}`;
+export const getJackpotStatsUrl = (tipo: LoteryType) => `/api/jackpots/stats/${tipo}`;
+
+export const getJackpots = (
+  tipo: LoteryType,
+  options?: RequestInit,
+): Promise<JackpotsResponse> =>
+  customFetch<JackpotsResponse>(getJackpotsUrl(tipo), {
+    ...options,
+    method: "GET",
+  });
+
+export const useGetJackpots = <
+  TData = Awaited<ReturnType<typeof getJackpots>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  tipo: LoteryType,
+  options?: UseQueryOptions<
+    Awaited<ReturnType<typeof getJackpots>>,
+    TError,
+    TData
+  >,
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } => {
+  const queryKey = [getJackpotsUrl(tipo)];
+  const query = useQuery({
+    queryKey,
+    queryFn: () => getJackpots(tipo),
+    ...options,
+  });
+  return { ...query, queryKey };
+};
+
+export const getJackpotStats = (
+  tipo: LoteryType,
+  options?: RequestInit,
+): Promise<JackpotStatsResponse> =>
+  customFetch<JackpotStatsResponse>(getJackpotStatsUrl(tipo), {
+    ...options,
+    method: "GET",
+  });
+
+export const useGetJackpotStats = <
+  TData = Awaited<ReturnType<typeof getJackpotStats>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  tipo: LoteryType,
+  options?: UseQueryOptions<
+    Awaited<ReturnType<typeof getJackpotStats>>,
+    TError,
+    TData
+  >,
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } => {
+  const queryKey = [getJackpotStatsUrl(tipo)];
+  const query = useQuery({
+    queryKey,
+    queryFn: () => getJackpotStats(tipo),
+    ...options,
+  });
+  return { ...query, queryKey };
+};
+
+export const addJackpot = (
+  tipo: LoteryType,
+  body: AddJackpotBody,
+  options?: RequestInit,
+): Promise<Jackpot> =>
+  customFetch<Jackpot>(`/api/jackpots/${tipo}`, {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const useAddJackpot = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addJackpot>>,
+    TError,
+    { tipo: LoteryType; body: AddJackpotBody },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addJackpot>>,
+  TError,
+  { tipo: LoteryType; body: AddJackpotBody },
+  TContext
+> => {
+  return useMutation({
+    mutationFn: ({ tipo, body }) => addJackpot(tipo, body),
+    ...options?.mutation,
+  });
+};
+
+export const deleteJackpot = (
+  id: number,
+  options?: RequestInit,
+): Promise<{ message: string }> =>
+  customFetch<{ message: string }>(`/api/jackpots/item/${id}`, {
+    ...options,
+    method: "DELETE",
+  });
+
+export const useDeleteJackpot = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteJackpot>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteJackpot>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation({
+    mutationFn: ({ id }) => deleteJackpot(id),
     ...options?.mutation,
   });
 };

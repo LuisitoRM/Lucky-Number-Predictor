@@ -8,14 +8,13 @@ import {
   LineChart, 
   History,
   Activity,
-  Bookmark
+  Bookmark,
+  Trophy
 } from "lucide-react";
 import type { LoteryType } from "@workspace/api-client-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-
-  const isLotteryActive = (l: string) => location.startsWith(`/${l}`);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row overflow-hidden selection:bg-primary/30">
@@ -51,6 +50,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             >
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
+            </Link>
+            <Link 
+              href="/jackpots" 
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                location === "/jackpots" ? "bg-yellow-500/10 text-yellow-400 font-medium" : "text-muted-foreground hover:bg-white/5 hover:text-white"
+              )}
+            >
+              <Trophy className="w-5 h-5" />
+              Análisis Jackpots
             </Link>
             <Link 
               href="/admin" 
@@ -101,6 +110,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
               >
                 <History className="w-5 h-5" />
                 Historial
+              </Link>
+
+              <Link 
+                href={`/${lottery}/jackpots`} 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                  location === `/${lottery}/jackpots` ? "bg-yellow-500/10 text-yellow-400 font-medium shadow-sm" : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <Trophy className="w-5 h-5" />
+                Jackpots
               </Link>
 
               <Link 

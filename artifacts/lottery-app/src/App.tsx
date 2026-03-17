@@ -7,6 +7,7 @@ import HistoryPage from "@/pages/History";
 import FrequenciesPage from "@/pages/Frequencies";
 import AdminPage from "@/pages/Admin";
 import SavedPredictionsPage from "@/pages/SavedPredictions";
+import JackpotsPage from "@/pages/Jackpots";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +24,8 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/admin" component={AdminPage} />
-        
+        <Route path="/jackpots" component={JackpotsPage} />
+
         {/* Dynamic Routes for each lottery */}
         <Route path="/:tipo/prediccion">
           {(params) => {
@@ -43,6 +45,13 @@ function Router() {
           {(params) => {
             const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
             return valid ? <FrequenciesPage key={params.tipo} tipo={params.tipo} /> : <Redirect to="/" />;
+          }}
+        </Route>
+
+        <Route path="/:tipo/jackpots">
+          {(params) => {
+            const valid = ['baloto', 'revancha', 'powerball'].includes(params.tipo);
+            return valid ? <JackpotsPage key={params.tipo} initialTipo={params.tipo as "baloto" | "revancha" | "powerball"} /> : <Redirect to="/" />;
           }}
         </Route>
 
